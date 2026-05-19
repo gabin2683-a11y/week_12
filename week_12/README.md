@@ -45,10 +45,12 @@ npm run simulate:parity2      # Part 3 — Parity #2 (핵심 과제)
 실행이 끝나면 `logs/` 아래 4개 로그가 생성/갱신됩니다.
 
 ## 4. 폴더 구조
+
+```
 week_12/
 ├── contracts/
 │   ├── dao/                                  # Part 1
-│   │   ├── SimpleDAO.sol                     # vulnerable
+│   │   ├── SimpleDAO.sol                     # 취약 버전
 │   │   ├── DAOAttacker.sol                   # 재진입 공격 컨트랙트
 │   │   ├── SimpleDAO_CEI.sol                 # fix A — Checks-Effects-Interactions
 │   │   ├── SimpleDAO_Guard.sol               # fix B — reentrancy guard
@@ -74,6 +76,8 @@ week_12/
 ├── hardhat.config.js
 ├── package.json
 └── README.md
+```
+
 
 ## 5. 핵심 결과 (Part 3 — Parity #2)
 
