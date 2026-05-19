@@ -15,187 +15,140 @@
 ## 2. Safety boundary
 
 - Local Hardhat simulation only (`--network hardhat`).
-- No live network, no private key, no RPC URL.
-- Vulnerable contracts는 교육용으로 의도적으로 unsafe하게 작성되어 있으며, 반드시 이 controlled lab 안에서만 다뤄야 합니다.
-- Scripts는 `logs/`에 evidence를 남기기 위한 것이며, live deployment scripts가 아닙니다.
-- **Parity #2 핵심**: 이 재현은 attacker가 wallet balance를 훔치는 것이 아니라, freeze / loss of access 상태를 보여줍니다.
+- No live network, no private key, no RPC URL.# Week 12 — DAO / Parity Smart Contract Security Lab
 
-## 3. Quick start
+블록체인 수업 Week 12 과제 제출물입니다.
+
+## 1. 과제 개요
+
+원본 과제 명세는 다음과 같습니다.
+
+> Simulate the DAO Hack (2016) and the two Parity Wallet hacks (2017) in a local environment.
+> Execute the attacks, document the vulnerabilities, and propose fixes.
+
+이번 실습에서는 이더리움 역사에서 유명한 세 가지 smart contract 취약점을 로컬 환경에서 재현하고, 각각의 fix를 검증합니다.
+
+| Part | 내용 | 핵심 메시지 |
+|------|------|-------------|
+| 1. DAO Reentrancy (2016) | 외부 호출 전에 상태가 업데이트되지 않아 재진입으로 drain | call 전에 state 갱신 (CEI) |
+| 2. Parity #1 — Unauthorized Init (2017) | uninitialized proxy의 fallback delegatecall로 attacker가 owner가 됨 | constructor에서 초기화 |
+| 3. Parity #2 — Library Self-Destruct (2017) | shared library가 selfdestruct되면 proxy wallet 자금이 freeze | selfdestruct 진입점 제거 |
+
+특히 Part 3은 **공격자에게 자금이 옮겨가는 것이 아니라 영구히 frozen된다**는 점이 가장 중요한 학습 포인트입니다.
+
+## 2. 안전 경계
+
+- 모든 실행은 로컬 Hardhat in-memory network (`--network hardhat`)에서만 이루어집니다.
+- 실제 네트워크에 배포하거나 private key를 사용하지 않습니다.
+- vulnerable contract들은 의도적으로 안전하지 않게 작성된 교육용 코드입니다. **실전 배포 금지**.
+
+## 3. 실행 방법
 
 ```bash
-cd week_12
 npm ci
 npm test
 ```
 
-Prerequisite: Node.js (>=18)와 npm. `package-lock.json`이 포함되어 있으므로 clean checkout에서는 `npm ci`를 권장합니다. 복사된 폴더에서 `npm ci`가 실패하면 fallback으로 `npm install`을 사용할 수 있습니다.
-
-`npm test`가 이 과제의 main verification gate입니다. 내부적으로 compile 후 전체 simulation을 실행합니다.
+`npm test`는 내부적으로 compile + 4개 시뮬레이션을 순서대로 실행합니다.
 
 ```bash
 npm run compile
-npm run simulate:dao
-npm run simulate:dao-fixes
-npm run simulate:parity1
-npm run simulate:parity2
+npm run simulate:dao          # Part 1 — DAO 공격
+npm run simulate:dao-fixes    # Part 1 — DAO 방어 (CEI / Guard / Pull-payment)
+npm run simulate:parity1      # Part 2 — Parity #1
+npm run simulate:parity2      # Part 3 — Parity #2 (핵심 과제)
 ```
 
-정상 실행되면 아래 evidence logs가 생성/덮어쓰기됩니다.
+실행이 끝나면 `logs/` 아래 4개 로그가 생성/갱신됩니다.
 
-- `logs/dao_attack.log`
-- `logs/dao_fixes.log`
-- `logs/parity1_attack.log`
-- `logs/parity2_freeze.log`
-
-## 4. Repository structure
+## 4. 폴더 구조
 
 ```
 week_12/
-  contracts/
-    dao/
-      SimpleDAO.sol
-      DAOAttacker.sol
-      SimpleDAO_CEI.sol
-      SimpleDAO_Guard.sol
-      SimpleDAO_PullPayment.sol
-    parity1/
-      WalletLibraryVulnerable.sol
-      WalletVulnerable.sol
-      WalletFixed.sol
-    parity2/
-      SharedWalletLibraryVulnerable.sol
-      SharedWallet.sol
-      SharedWalletLibraryFixed.sol
-  scripts/
-    01_dao_attack.js
-    02_dao_fixes.js
-    03_parity1_attack.js
-    04_parity2_freeze.js
-    lib.js
-  logs/
-    dao_attack.log
-    dao_fixes.log
-    parity1_attack.log
-    parity2_freeze.log
-  diagrams/
-    delegatecall_storage_collision.md
-  screenshots/
-    README.md
-    (01..05 PNG files added after running npm test)
-  student_ai_prompt_week12.md
-  hardhat.config.js
-  package.json
-  package-lock.json
-  README.md
+├── contracts/
+│   ├── dao/                                  # Part 1
+│   │   ├── SimpleDAO.sol                     # vulnerable
+│   │   ├── DAOAttacker.sol                   # 재진입 공격 컨트랙트
+│   │   ├── SimpleDAO_CEI.sol                 # fix A — Checks-Effects-Interactions
+│   │   ├── SimpleDAO_Guard.sol               # fix B — reentrancy guard
+│   │   └── SimpleDAO_PullPayment.sol         # fix C — pull-payment pattern
+│   ├── parity1/                              # Part 2
+│   │   ├── WalletLibraryVulnerable.sol
+│   │   ├── WalletVulnerable.sol              # proxy
+│   │   └── WalletFixed.sol                   # constructor init + 재초기화 차단
+│   └── parity2/                              # Part 3
+│       ├── SharedWalletLibraryVulnerable.sol # initWallet/killLibrary 무방비
+│       ├── SharedWallet.sol                  # delegatecall proxy
+│       └── SharedWalletLibraryFixed.sol      # 직접 호출 차단 + selfdestruct 없음
+├── scripts/
+│   ├── 01_dao_attack.js
+│   ├── 02_dao_fixes.js
+│   ├── 03_parity1_attack.js
+│   ├── 04_parity2_freeze.js
+│   └── lib.js                                # 로깅 유틸
+├── logs/                                     # 실행 결과 텍스트 로그
+├── diagrams/
+│   └── delegatecall_storage_collision.md     # Parity #1/#2 storage collision 설명
+├── screenshots/                              # 실행 화면 캡쳐 (PNG)
+├── hardhat.config.js
+├── package.json
+└── README.md
 ```
 
-## 5. Assignment-to-file mapping
+## 5. 핵심 결과 (Part 3 — Parity #2)
 
-| Part | What is demonstrated | Core contracts | Script | Evidence |
-|------|----------------------|----------------|--------|----------|
-| DAO Reentrancy | External call before balance update가 recursive withdrawal을 허용하고, CEI / guard / pull-payment가 이를 막습니다. | `contracts/dao/*` | `scripts/01_dao_attack.js`, `scripts/02_dao_fixes.js` | `logs/dao_attack.log`, `logs/dao_fixes.log` |
-| Parity #1 | Proxy fallback delegatecall이 uninitialized proxy storage에 attacker owner를 기록합니다. | `contracts/parity1/*` | `scripts/03_parity1_attack.js` | `logs/parity1_attack.log` |
-| Parity #2 | Shared library takeover와 selfdestruct가 delegated code를 제거해 proxy wallets를 freeze합니다. | `contracts/parity2/*` | `scripts/04_parity2_freeze.js` | `logs/parity2_freeze.log` |
+원본 과제에서 요구한 7개 task가 `04_parity2_freeze.js` 안에 그대로 매핑되어 있고, `logs/parity2_freeze.log`에서 확인할 수 있습니다.
 
-## 6. Expected results
+| 과제 Task | 스크립트 단계 | 결과 |
+|----------|---------------|------|
+| 1. walletLibrary와 3개 wallet 배포 (같은 라이브러리 가리킴) | Step 1–2 | ✅ |
+| 2. 각 wallet을 initialize하고 fund | Step 3 | ✅ 각 5 ETH |
+| 3. attacker가 library에 직접 `initWallet()` 호출해서 owner 됨 | Step 4 | ✅ owners[0] = attacker |
+| 4. attacker가 library에 직접 `kill()` 호출 → selfdestruct | Step 5 | ✅ code size 1298 → 0 bytes |
+| 5. wallet 함수 호출 시도 → delegatecall failure 확인 | Step 6 | ✅ 잔액 변화 없음 |
+| 6. 자금이 frozen인 이유 설명 | Step 7 | ✅ attacker EOA는 gas만 소비 |
+| 7. access control + selfdestruct 제거 fix | Fixed library variant | ✅ 직접 init 차단, kill 진입점 자체가 없음 |
 
-### 6.1 DAO Reentrancy
+실행 로그 발췌:
 
-Expected vulnerable flow:
+```
+Step 5: Attacker calls killLibrary() directly on the library
+        Library code size BEFORE kill: 1298 bytes
+        Library code size AFTER  kill: 0 bytes
 
-1. Victim이 `SimpleDAO`에 10 ETH를 deposit합니다.
-2. Attacker가 1 ETH를 seed합니다.
-3. `SimpleDAO`가 recorded balance를 줄이기 전에 `DAOAttacker.receive()`가 `withdraw()`로 re-enter합니다.
-4. DAO balance는 0 ETH가 되고, attacker contract balance는 11 ETH가 됩니다.
+Step 6: Each legitimate owner attempts execute() on their wallet
+        Wallet 1 execute() tx status=1, delegatecall to empty library returned without moving funds
+        Wallet 1 balance: 4.0 ETH (unchanged, frozen)
+        ...
 
-Vulnerable ordering:
-
-```solidity
-(bool ok, ) = payable(msg.sender).call{value: amount}("");
-require(ok, "send failed");
-balances[msg.sender] -= amount;   // BUG: too late
+Step 7: Confirm funds are FROZEN, not STOLEN
+        Attacker EOA balance change is only gas spent.
+        Each wallet still holds its ETH but can no longer move it.
 ```
 
-Fix coverage:
+## 6. 왜 자금이 frozen이고 stolen이 아닌가
 
-- `SimpleDAO_CEI.sol`은 external call 전에 balance를 먼저 줄입니다 (Checks-Effects-Interactions).
-- `SimpleDAO_Guard.sol`은 reentrancy guard로 recursive withdraw를 차단합니다.
-- `SimpleDAO_PullPayment.sol`은 withdrawal을 queue에 넣어 첫 withdraw 중에 Ether를 push하지 않게 합니다.
+`selfdestruct(payable(attacker))`는 **library contract 자신의 잔액만** attacker에게 보냅니다. 그런데 library는 잔액이 0입니다 — ETH는 각 proxy wallet 안에 있습니다. selfdestruct로 사라지는 것은 **library의 코드**입니다.
 
-### 6.2 Parity #1: Unauthorized Initialization
+코드가 사라진 후에도 proxy wallet들은 여전히 같은 library 주소를 `walletLibrary` slot에 저장하고 있고, 모든 함수 호출은 그 주소로 `delegatecall`됩니다. 빈 주소로의 delegatecall은 EVM에서 **성공으로 처리되지만 아무 일도 일어나지 않습니다** (`status=1`이지만 잔액 변화 없음). 따라서:
 
-Expected vulnerable flow:
+- 자금은 proxy wallet 안에 그대로 있음 (도난 X)
+- 하지만 어떤 함수로도 옮길 수 없음 (영구 동결)
 
-1. Vulnerable wallet library 1개가 deploy됩니다.
-2. Proxy wallets 3개가 같은 library로 delegate합니다.
-3. Wallet 1은 legitimate owner가 initialize하여 정상 owner control을 보입니다.
-4. Wallet 2와 Wallet 3은 uninitialized 상태로 남습니다.
-5. Attacker가 각 uninitialized proxy fallback을 통해 `initWallet([attacker], 1)`을 호출합니다.
-6. delegatecall이 각 proxy storage에 attacker ownership을 기록합니다.
-7. Attacker가 `execute()`를 호출해 Wallet 2와 Wallet 3을 drain합니다.
+이것이 2017년 11월 Parity multi-sig 사건에서 약 513,000 ETH가 영구히 잠긴 메커니즘입니다.
 
-Expected fixed flow:
+## 7. EVM 설정 관련
 
-- `WalletFixed`는 constructor에서 ownership을 initialize합니다.
-- `initWallet()` 재호출은 already initialized로 revert됩니다.
-- Attacker의 `execute()`는 owner only로 revert됩니다.
+`hardhat.config.js`에서 EVM 버전을 `paris`, hardfork를 `merge`로 고정했습니다. Cancun 이후의 SELFDESTRUCT semantics에서는 같은 트랜잭션에서 코드가 즉시 사라지지 않기 때문에, Parity #2의 historical replay를 위해서는 **pre-Cancun 동작**이 필요합니다.
 
-### 6.3 Parity #2: Library Self-Destruct
+## 8. 검증 체크리스트
 
-Expected vulnerable flow:
+- [x] DAO 공격: 10 ETH DAO를 1 ETH seed로 drain (DAO → 0 ETH, attacker → 11 ETH)
+- [x] DAO 방어 3종 (CEI / Guard / Pull-payment): 모두 reentrancy 차단
+- [x] Parity #1: uninitialized proxy 2개 drain, fixed wallet은 보호됨
+- [x] Parity #2: library 코드 1298 → 0 bytes, 3개 wallet 자금 frozen, attacker는 gas만 소비
+- [x] Fixed shared library: 직접 init 차단, selfdestruct 진입점 없음, proxy 정상 동작
 
-1. Vulnerable shared library 1개가 deploy됩니다.
-2. Funded `SharedWallet` proxies 3개가 legitimate owner로 initialize되고 같은 shared library를 가리킵니다.
-3. Library contract 자체가 직접 initialize될 수 있습니다.
-4. Attacker가 library own storage의 owner가 됩니다.
-5. Attacker가 `killLibrary()`를 호출합니다.
-6. 각 proxy는 여전히 같은 library address를 가리키지만, 그 address의 code가 사라집니다.
-7. Owner의 `execute()` 호출은 delegatecall이 빈 코드를 향하므로 funds가 움직이지 않고, wallet balances는 제자리에 남습니다.
+## 9. 경고
 
-**Important: Parity #2 freezes funds; it does not transfer wallet funds to the attacker.** Attacker EOA balance는 gas만 소비될 뿐입니다.
-
-Expected fixed flow:
-
-- `SharedWalletLibraryFixed`는 direct library-instance initialization을 비활성화합니다 (`address(this) != LIBRARY_SELF` 체크).
-- `killLibrary()` / `selfdestruct` entrypoint를 아예 제공하지 않습니다.
-- Fixed library를 사용하는 wallet은 legitimate owner가 계속 사용할 수 있습니다.
-
-## 7. Why Hardhat uses Merge / Paris here
-
-`hardhat.config.js`는 아래 설정을 사용합니다.
-
-- Solidity EVM version: `paris`
-- Hardhat network hardfork: `merge`
-
-이 설정은 의도된 것입니다. Modern Cancun / Prague semantics에서는 SELFDESTRUCT behavior가 바뀌어 같은 트랜잭션에서 code가 즉시 사라지지 않습니다. Parity #2의 historical replay에서 shared-library code가 사라지고 proxy wallets가 freeze되는 모습을 보여주려면 **pre-Cancun behavior**가 필요합니다.
-
-## 8. Verification checklist
-
-Reviewer 또는 학생은 `week_12/`에서 아래를 실행합니다.
-
-```bash
-npm test
-ls logs
-tail -n 8 logs/dao_attack.log
-tail -n 8 logs/dao_fixes.log
-tail -n 8 logs/parity1_attack.log
-tail -n 8 logs/parity2_freeze.log
-```
-
-Pass criteria:
-
-- [x] Compile succeeds.
-- [x] DAO attack log가 vulnerable DAO drained to 0 ETH를 보여줍니다.
-- [x] DAO fixes log가 CEI / guard reverts와 pull-payment safe path를 보여줍니다.
-- [x] Parity #1 log가 uninitialized wallets drained와 fixed wallet protected를 보여줍니다.
-- [x] Parity #2 log가 wallet balances가 stolen이 아니라 frozen in place임을 보여주고, fixed shared-library wallet이 계속 usable함을 보여줍니다.
-
-## 9. Troubleshooting
-
-- `npm ci`가 실패하면 먼저 Node.js / npm 설치 여부를 확인하고, 복사본 폴더라면 `npm install`을 시도합니다.
-- 첫 compile은 solc 0.8.20 binary를 다운로드합니다. 인터넷 연결이 필요합니다.
-- Parity #2에서 "왜 돈이 attacker에게 안 갔지?"라고 느껴진다면 정상입니다. 이 case의 핵심은 theft가 아니라 funds **freeze**입니다.
-
-## 10. Warning
-
-이 폴더의 vulnerable contracts와 scripts는 **교육 목적으로만** 작성되어 있습니다. 실제 네트워크에 배포하지 마십시오.
+이 폴더의 vulnerable contracts와 attack scripts는 **교육 목적의 로컬 시뮬레이션 전용**입니다. 실제 네트워크에 배포하지 마십시오.
