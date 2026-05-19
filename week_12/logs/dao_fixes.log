@@ -1,0 +1,20 @@
+=== Week 12 Part 1 (fixes): DAO mitigation variants ===
+Network: hardhatMainnet (local Hardhat in-memory)
+
+--- Fix A: Checks-Effects-Interactions ---
+Victim deposited 10 ETH into SimpleDAO_CEI
+Reentrancy attempt reverted? true  (VM Exception while processing transaction: reverted with reason string 'send failed')
+CEI DAO balance after attempt: 10.0 ETH
+
+--- Fix B: Reentrancy guard ---
+Victim deposited 10 ETH into SimpleDAO_Guard
+Reentrancy attempt reverted? true  (VM Exception while processing transaction: reverted with reason string 'send failed')
+Guard DAO balance after attempt: 10.0 ETH
+
+--- Fix C: Pull-payment pattern ---
+Victim deposited 10 ETH into SimpleDAO_PullPayment
+Victim called withdraw(3 ETH). No Ether sent yet (queued credit).
+Victim called claim(). Funds released through pull path only.
+Pull DAO balance after claim: 7.0 ETH
+
+RESULT: All three fix variants prevent the reentrancy drain.

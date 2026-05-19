@@ -1,0 +1,50 @@
+=== Week 12 Part 3: Parity #2 Library Self-Destruct (Freeze) ===
+Network: hardhatMainnet (local Hardhat in-memory)
+EVM: paris, hardfork: merge (pre-Cancun SELFDESTRUCT semantics)
+
+Step 1: Deployed SharedWalletLibraryVulnerable: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Step 2: Deployed 3 SharedWallet proxies, each funded with 5 ETH
+        Wallet 1: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+        Wallet 2: 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+        Wallet 3: 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+        All point to shared library: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+
+Step 3: Each wallet initialized with its own legitimate owner.
+        Wallet 1 owner: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+        Wallet 2 owner: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+        Wallet 3 owner: 0x90F79bf6EB2c4f870365E785982E1f101E93b906
+
+Sanity check: Wallet 1 owner withdraws 1 ETH via execute() before attack
+        Wallet 1 balance: 4.0 ETH
+
+Step 4: Attacker calls initWallet([attacker], 1) DIRECTLY on the library
+        Library's own owners[0] is now: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+
+Step 5: Attacker calls killLibrary() directly on the library
+        Library code size BEFORE kill: 1298 bytes
+        Library code size AFTER  kill: 0 bytes
+
+Step 6: Each legitimate owner attempts execute() on their wallet
+        Wallet 1 execute() tx status=1, delegatecall to empty library returned without moving funds
+        Wallet 1 balance: 4.0 ETH (unchanged, frozen)
+        Wallet 2 execute() tx status=1, delegatecall to empty library returned without moving funds
+        Wallet 2 balance: 5.0 ETH (unchanged, frozen)
+        Wallet 3 execute() tx status=1, delegatecall to empty library returned without moving funds
+        Wallet 3 balance: 5.0 ETH (unchanged, frozen)
+
+Step 7: Confirm funds are FROZEN, not STOLEN
+        Attacker EOA balance change is only gas spent.
+        Each wallet still holds its ETH but can no longer move it.
+        Wallet 1: 4.0 ETH
+        Wallet 2: 5.0 ETH
+        Wallet 3: 5.0 ETH
+
+--- Fixed library variant ---
+Deployed SharedWalletLibraryFixed: 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+Direct initWallet() on fixed library reverted: revert
+Fixed library has NO killLibrary / selfdestruct entrypoint.
+Proxy on fixed library: legitimate owner executed transfer of 2 ETH
+Fixed-library proxy balance: 3.0 ETH
+
+RESULT: Vulnerable shared library destroyed -> wallet funds frozen in place.
+        Fixed library cannot be killed -> proxy wallets remain usable.

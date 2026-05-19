@@ -1,0 +1,29 @@
+=== Week 12 Part 2: Parity #1 Unauthorized Initialization ===
+Network: hardhatMainnet (local Hardhat in-memory)
+
+Deployed WalletLibraryVulnerable: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Deployed Wallet 1 (funded 5 ETH): 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+Deployed Wallet 2 (funded 5 ETH): 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
+Deployed Wallet 3 (funded 5 ETH): 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+
+Wallet 1 initialized by legitimate owner: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+Wallet 2 / Wallet 3: left uninitialized
+
+--- Attacker calls initWallet([attacker], 1) on uninitialized proxies ---
+Wallet 2 owner overwritten via delegatecall fallback
+Wallet 3 owner overwritten via delegatecall fallback
+
+Wallet 2 balance after drain: 0.0 ETH
+Wallet 3 balance after drain: 0.0 ETH
+
+--- Attacker attempts execute() on Wallet 1 (owned by legit owner) ---
+Wallet 1 drain reverted as expected: revert
+
+--- Fixed wallet variant ---
+Deployed WalletFixed (funded 5 ETH): 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9
+Owner set in constructor: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+Re-init on fixed wallet reverted: revert
+Execute() by attacker reverted on fixed wallet: revert
+WalletFixed balance preserved: 5.0 ETH
+
+RESULT: Uninitialized vulnerable wallets drained. Fixed wallet protected.

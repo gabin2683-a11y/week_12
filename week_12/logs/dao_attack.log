@@ -1,0 +1,14 @@
+=== Week 12 Part 1: DAO Reentrancy Attack ===
+Network: hardhatMainnet (local Hardhat in-memory)
+
+Deployed SimpleDAO        : 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Victim deposited          : 10 ETH
+DAO balance after deposit : 10.0 ETH
+Deployed DAOAttacker      : 0x663F3ad617193148711d28f5334eE4Ed07016602
+Attacker seed             : 1 ETH
+
+--- Launching reentrancy attack ---
+DAO balance after attack  : 0.0 ETH
+Attacker contract balance : 11.0 ETH
+
+RESULT: DAO drained to 0 ETH. Reentrancy attack succeeded.
