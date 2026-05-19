@@ -92,15 +92,25 @@ week_12/
 실행 로그 발췌:
 
 Step 5: Attacker calls killLibrary() directly on the library
+
 Library code size BEFORE kill: 1298 bytes
+
 Library code size AFTER  kill: 0 bytes
+
 Step 6: Each legitimate owner attempts execute() on their wallet
+
 Wallet 1 execute() tx status=1, delegatecall to empty library returned without moving funds
+
 Wallet 1 balance: 4.0 ETH (unchanged, frozen)
+
 ...
+
 Step 7: Confirm funds are FROZEN, not STOLEN
+
 Attacker EOA balance change is only gas spent.
+
 Each wallet still holds its ETH but can no longer move it.
+
 
 ## 6. 왜 자금이 frozen이고 stolen이 아닌가
 
